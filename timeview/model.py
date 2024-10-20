@@ -11,7 +11,7 @@ def is_dynamic_bias_enabled(config):
 
 def expit_m1(t):
     """expit function with mapping R -> (-1, 1)"""
-    return torch.special.expit(torch.tensor(t)) * 2 - 1
+    return 2 * torch.special.expit(t) - 1
 
 
 class Encoder(torch.nn.Module):
