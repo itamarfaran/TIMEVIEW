@@ -46,6 +46,14 @@ def load_model(timestamp, benchmarks_folder='benchmarks', final=True, seed=None)
     return model
 
 
+def non_missing_y(y, n):
+    return (
+        torch.arange(y.shape[1])
+        .repeat(y.shape[0])
+        .reshape(y.shape)
+    ) < n[:, None]
+
+
 class LitTTS(pl.LightningModule):
     def __init__(self, config: Config):
         super().__init__()
@@ -75,7 +83,8 @@ class LitTTS(pl.LightningModule):
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
             pred = self.model(batch_X, batch_Phi, batch_y)
-            loss = torch.sum(torch.sum(((pred - batch_y) ** 2), dim=1) / batch_N) / batch_X.shape[0]
+            pred = pred * non_missing_y(batch_y, batch_N)
+            loss = torch.sum(torch.sum((pred - batch_y) ** 2, dim=1) / batch_N) / batch_X.shape[0]
 
         self.log(f'{name}_loss', loss)
         return loss
