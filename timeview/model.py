@@ -1,57 +1,40 @@
 import torch
-import numpy as np
-import pytorch_lightning as pl
-
 from timeview.basis import BSplineBasis
 from .config import Config
+
 
 def is_dynamic_bias_enabled(config):
     if hasattr(config, 'dynamic_bias'):
         return config.dynamic_bias
-    else:
-        return False
+    return False
+
 
 class Encoder(torch.nn.Module):
-
-    def __init__(self,config):
-        """
-        Args:
-            config: an instance of the Config class
-        """
+    def __init__(self, config: Config):
         super().__init__()
         self.config = config
         self.n_features = config.n_features
         self.n_basis = config.n_basis
-        self.hidden_sizes =  config.encoder.hidden_sizes
+        self.hidden_sizes = config.encoder.hidden_sizes
         self.dropout_p = config.encoder.dropout_p
 
         assert len(self.hidden_sizes) > 0
+        latent_size = self.n_basis if is_dynamic_bias_enabled(config) else self.n_basis + 1
 
         self.layers = []
-        activation = torch.nn.ReLU()
-
-        self.layers.append(torch.nn.Linear(self.n_features,self.hidden_sizes[0]))
-        self.layers.append(torch.nn.BatchNorm1d(self.hidden_sizes[0]))
-        self.layers.append(activation)
-        self.layers.append(torch.nn.Dropout(self.dropout_p))
-
-        for i in range(len(self.hidden_sizes) - 1):
-            self.layers.append(torch.nn.Linear(self.hidden_sizes[i],self.hidden_sizes[i+1]))
-            self.layers.append(torch.nn.BatchNorm1d(self.hidden_sizes[i+1]))
-            self.layers.append(activation)
-            self.layers.append(torch.nn.Dropout(self.dropout_p))
-        
-        latent_size = self.n_basis
-
-        if is_dynamic_bias_enabled(config):
-            latent_size += 1
-        
-        self.layers.append(torch.nn.Linear(self.hidden_sizes[-1],latent_size))
-
+        for i in range(len(self.hidden_sizes)):
+            self.layers.extend((
+                torch.nn.Linear(self.hidden_sizes[i - 1] if i else self.n_features, self.hidden_sizes[i]),
+                torch.nn.BatchNorm1d(self.hidden_sizes[i]),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(self.dropout_p),
+            ))
+        self.layers.append(torch.nn.Linear(self.hidden_sizes[-1], latent_size))
         self.nn = torch.nn.Sequential(*self.layers)
 
     def forward(self, x):
         return self.nn(x)
+
 
 class TTS(torch.nn.Module):
 
