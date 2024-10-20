@@ -19,7 +19,7 @@ class Encoder(torch.nn.Module):
         self.dropout_p = config.encoder.dropout_p
 
         assert len(self.hidden_sizes) > 0
-        latent_size = self.n_basis if is_dynamic_bias_enabled(config) else self.n_basis + 1
+        latent_size = self.n_basis + 1 if is_dynamic_bias_enabled(config) else self.n_basis
 
         self.layers = []
         for i in range(len(self.hidden_sizes)):
