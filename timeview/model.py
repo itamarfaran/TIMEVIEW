@@ -53,22 +53,24 @@ class ARMA(torch.nn.Module):
         if max(self.p, self.q) > 1:
             raise NotImplementedError
 
+        self.phi, self.theta = None, None
+
         if self.p:
             self.phi = torch.nn.Parameter(torch.zeros(self.p))
         if self.q:
             self.theta = torch.nn.Parameter(torch.zeros(self.p))
 
-    def forward(self, y, y_pred=None):
+    def forward(self, y=None, y_pred=None):
         out = torch.zeros_like(y)
         if self.p:
             y_lag = torch.roll(y, 1, -1)
             y_lag[:, 0] = 0.0
-            out += expit_m1(self.phi) * y_lag
+            out = out + expit_m1(self.phi) * y_lag
         if self.q:
             resid = y - y_pred
             resid_lag = torch.roll(resid, 1, -1)
             resid_lag[:, 0] = 0.0
-            out += expit_m1(self.theta) * resid_lag
+            out = out + expit_m1(self.theta) * resid_lag
         return out
 
 
