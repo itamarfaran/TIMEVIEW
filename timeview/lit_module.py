@@ -68,13 +68,13 @@ class LitTTS(pl.LightningModule):
     def _step(self, batch, name):
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
-            preds = self.model(batch_X, batch_Phis)
+            preds = self.model(batch_X, batch_Phis, batch_ys)
             losses = [self.loss_fn(pred, y) for pred, y in zip(preds, batch_ys)]
             loss = torch.mean(torch.stack(losses))
 
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
-            pred = self.model(batch_X, batch_Phi)
+            pred = self.model(batch_X, batch_Phi, batch_y)
             loss = torch.sum(torch.sum(((pred - batch_y) ** 2), dim=1) / batch_N) / batch_X.shape[0]
 
         self.log(f'{name}_loss', loss)

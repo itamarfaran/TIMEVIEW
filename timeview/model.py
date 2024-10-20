@@ -81,11 +81,12 @@ class TTS(torch.nn.Module):
 
         self.config = config
         self.encoder = Encoder(self.config)
+        self.arma = ARMA(self.config)
 
         if not is_dynamic_bias_enabled(self.config):
             self.bias = torch.nn.Parameter(torch.zeros(1))
 
-    def forward(self, X, Phis):
+    def forward(self, X, Phis, y=None):
         """
         Args:
             X: a tensor of shape (D,M) where D is the number of sample and M is the number of static features
@@ -100,6 +101,10 @@ class TTS(torch.nn.Module):
             h = h[:, :-1]
         
         if self.config.dataloader_type == "iterative":
+            if self.arma.p + self.arma.q:
+                raise NotImplementedError
+                # todo: implement arma for iterative
+
             return [
                 torch.matmul(Phi, h[d, :]) + (
                     self.bias[d]
@@ -109,11 +114,12 @@ class TTS(torch.nn.Module):
             ]
 
         elif self.config.dataloader_type == "tensor":
-            return torch.matmul(Phis, torch.unsqueeze(h, -1)).squeeze(-1) + (
+            preds = torch.matmul(Phis, torch.unsqueeze(h, -1)).squeeze(-1) + (
                 torch.unsqueeze(self.bias, -1)
                 if is_dynamic_bias_enabled(self.config) else
                 self.bias
             )
+            return preds + self.arma(y, preds)
 
     def predict_latent_variables(self, X):
         """
