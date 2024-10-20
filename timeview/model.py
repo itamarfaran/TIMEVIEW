@@ -9,6 +9,11 @@ def is_dynamic_bias_enabled(config):
     return False
 
 
+def expit_m1(t):
+    """expit function with mapping R -> (-1, 1)"""
+    return torch.special.expit(torch.tensor(t)) * 2 - 1
+
+
 class Encoder(torch.nn.Module):
     def __init__(self, config: Config):
         super().__init__()
@@ -34,6 +39,37 @@ class Encoder(torch.nn.Module):
 
     def forward(self, x):
         return self.nn(x)
+
+
+class ARMA(torch.nn.Module):
+    def __init__(self, config: Config):
+        super().__init__()
+        self.config = config
+        self.p = config.arma.p
+        self.q = config.arma.q
+
+        if min(self.p, self.q) < 0:
+            raise ValueError
+        if max(self.p, self.q) > 1:
+            raise NotImplementedError
+
+        if self.p:
+            self.phi = torch.nn.Parameter(torch.zeros(self.p))
+        if self.q:
+            self.theta = torch.nn.Parameter(torch.zeros(self.p))
+
+    def forward(self, y, y_pred=None):
+        out = torch.zeros_like(y)
+        if self.p:
+            y_lag = torch.roll(y, 1, -1)
+            y_lag[:, 0] = 0.0
+            out += expit_m1(self.phi) * y_lag
+        if self.q:
+            resid = y - y_pred
+            resid_lag = torch.roll(resid, 1, -1)
+            resid_lag[:, 0] = 0.0
+            out += expit_m1(self.theta) * resid_lag
+        return out
 
 
 class TTS(torch.nn.Module):

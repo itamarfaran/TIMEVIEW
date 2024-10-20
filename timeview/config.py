@@ -28,6 +28,7 @@ class Config():
                  seed=42,
                  encoder={'hidden_sizes': [32, 64, 32],
                           'activation': 'relu', 'dropout_p': 0.2},
+                 arma={'p': 1, 'q': 1},
                  training={'optimizer': 'adam', 'lr': 1e-3,
                            'batch_size': 32, 'weight_decay': 1e-5},
                  dataset_split={'train': 0.8, 'val': 0.1, 'test': 0.1},
@@ -78,6 +79,7 @@ class Config():
         self.T = T
         self.seed = seed
         self.encoder = SimpleNamespace(**encoder)
+        self.arma = SimpleNamespace(**arma)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type
