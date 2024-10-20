@@ -131,6 +131,10 @@ class TuningConfig(Config):
             'activation': activation,
             'dropout_p': dropout_p
         }
+        arma = {
+            'p': trial.suggest_int('p', 0, 1),
+            'q': trial.suggest_int('q', 0, 1),
+        }
         training = {
             'optimizer': 'adam',
             'lr': lr,
@@ -178,6 +182,7 @@ class TuningConfig(Config):
         self.T = T
         self.seed = seed
         self.encoder = SimpleNamespace(**encoder)
+        self.arma = SimpleNamespace(**arma)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type
