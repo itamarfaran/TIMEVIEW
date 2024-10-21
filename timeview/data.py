@@ -292,6 +292,7 @@ class TTSDataset(torch.utils.data.Dataset):
         return [X, ts, ys]
 
     def _save_data(self, X, ts, ys, T):
+        # todo: standardize??
         self.X = X
         self.ts = ts
         self.ys = ys
