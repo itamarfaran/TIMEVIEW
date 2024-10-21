@@ -26,6 +26,7 @@ class Config():
                  n_basis=5,
                  T=1,
                  seed=42,
+                 cov_type="iid",
                  encoder={'hidden_sizes': [32, 64, 32],
                           'activation': 'relu', 'dropout_p': 0.2},
                  arma={'p': 1, 'q': 1},
@@ -78,6 +79,7 @@ class Config():
         self.n_features = n_features
         self.T = T
         self.seed = seed
+        self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
         self.arma = SimpleNamespace(**arma)
         self.training = SimpleNamespace(**training)
@@ -126,6 +128,7 @@ class TuningConfig(Config):
         if n_basis_tunable:
             n_basis = trial.suggest_int('n_basis', 5, 16)
 
+        cov_type = trial.suggest_categorical("cov_type", ["iid", "ar1", "block"])
         encoder = {
             'hidden_sizes': hidden_sizes,
             'activation': activation,
@@ -181,6 +184,7 @@ class TuningConfig(Config):
         self.n_features = n_features
         self.T = T
         self.seed = seed
+        self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
         self.arma = SimpleNamespace(**arma)
         self.training = SimpleNamespace(**training)

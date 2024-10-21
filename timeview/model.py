@@ -23,10 +23,10 @@ def filter_by_n(y, n):
 
 
 class MahalanobisLoss2D(torch.nn.Module):
-    def __init__(self, cov_type: str = "iid", param=None):
+    def __init__(self, config: Config, param=None):
         super().__init__()
 
-        self.cov_type = cov_type
+        self.cov_type = config.cov_type
         if self.cov_type not in ("iid", "ar1", "block"):
             raise ValueError
 
