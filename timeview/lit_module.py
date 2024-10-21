@@ -51,7 +51,7 @@ class LitTTS(pl.LightningModule):
         super().__init__()
         self.config = config
         self.model = TTS(config)
-        self.loss_fn = MahalanobisLoss2D(config, self.model.cov_param)
+        self.loss_fn = MahalanobisLoss2D(config.cov_type, self.model.cov_param)
         self.lr = self.config.training.lr
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -65,31 +65,30 @@ class LitTTS(pl.LightningModule):
             pred = self.model(batch_X, batch_Phi)
             return pred  # 2D tensor
 
-    def _step(self, batch, name):
+    def _step(self, batch, name, loss_fn):
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
             preds = self.model(batch_X, batch_Phis, batch_ys)
             loss = torch.stack([
-                self.loss_fn(pred, y)
-                for pred, y in zip(preds, batch_ys)
+                loss_fn(pred, y) for pred, y in zip(preds, batch_ys)
             ]).mean()
 
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
             pred = self.model(batch_X, batch_Phi, batch_y)
-            loss = self.loss_fn(batch_y, pred, batch_N)
+            loss = loss_fn(batch_y, pred, n=batch_N)
 
         self.log(f'{name}_loss', loss)
         return loss
 
     def training_step(self, batch, batch_idx):
-        return self._step(batch, 'train')
+        return self._step(batch, 'train', self.loss_fn)
 
     def validation_step(self, batch, batch_idx):
-        return self._step(batch, 'val')
+        return self._step(batch, 'val', self.loss_fn)
 
     def test_step(self, batch, batch_idx):
-        return self._step(batch, 'test')
+        return self._step(batch, 'test', MahalanobisLoss2D())
 
     def configure_optimizers(self):
         optimizer = OPTIMIZERS[self.config.training.optimizer](

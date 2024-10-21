@@ -23,20 +23,20 @@ def filter_by_n(y, n):
 
 
 class MahalanobisLoss2D(torch.nn.Module):
-    def __init__(self, config: Config, param=None):
+    def __init__(self, cov_type="iid", param=None):
         super().__init__()
 
-        self.cov_type = config.cov_type
+        self.cov_type = cov_type
         if self.cov_type not in ("iid", "ar1", "block"):
             raise ValueError
         self.param = param
 
-    def precision(self, dim):
+    def precision(self, param, dim):
         if self.cov_type == "iid":
             return torch.eye(dim)
 
         if self.cov_type == "ar1":
-            param = expit_m1(self.param)
+            param = expit_m1(param)
             coef = -param / (1 + param ** 2)
             return torch.eye(dim) + coef * (
                 torch.diag(torch.ones(dim - 1), 1)
@@ -44,12 +44,18 @@ class MahalanobisLoss2D(torch.nn.Module):
             )
 
         if self.cov_type == "block":
-            param = torch.special.expit(self.param)
+            param = torch.special.expit(param)
             coef = param / (1 + (dim - 1) * param)
             out = torch.eye(dim) - coef * torch.ones((dim, dim))
             return out / (1 - coef)
 
-    def forward(self, y_true, y_pred, n=None):
+    def forward(self, y_true, y_pred, param=None, n=None):
+        if param is None:
+            param = self.param
+        else:
+            if self.param is not None:
+                raise TypeError("cannot pass param argument if param attribute is not none")
+
         diff = y_true - y_pred
 
         if n is None:
@@ -61,7 +67,7 @@ class MahalanobisLoss2D(torch.nn.Module):
             out = torch.sum(diff ** 2, dim=-1)
 
         else:
-            out = diff @ self.precision(diff.shape[-1]) @ diff.T
+            out = diff @ self.precision(param, diff.shape[-1]) @ diff.T
             if diff.ndim > 1:
                 out = torch.diag(out)
 
