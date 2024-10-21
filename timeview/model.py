@@ -29,13 +29,7 @@ class MahalanobisLoss2D(torch.nn.Module):
         self.cov_type = config.cov_type
         if self.cov_type not in ("iid", "ar1", "block"):
             raise ValueError
-
-        if self.cov_type == "iid":
-            self.param = None
-        elif param is None:
-            self.param = torch.nn.Parameter(torch.zeros(1))
-        else:
-            self.param = param
+        self.param = param
 
     def precision(self, dim):
         if self.cov_type == "iid":
@@ -142,6 +136,8 @@ class TTS(torch.nn.Module):
         self.config = config
         self.encoder = Encoder(self.config)
         self.arma = ARMA(self.config)
+
+        self.cov_param = None if config.cov_type == "iid" else torch.nn.Parameter(torch.zeros(1))
 
         if not is_dynamic_bias_enabled(self.config):
             self.bias = torch.nn.Parameter(torch.zeros(1))

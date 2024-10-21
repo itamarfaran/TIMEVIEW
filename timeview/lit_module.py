@@ -51,7 +51,7 @@ class LitTTS(pl.LightningModule):
         super().__init__()
         self.config = config
         self.model = TTS(config)
-        self.loss_fn = MahalanobisLoss2D(config)
+        self.loss_fn = MahalanobisLoss2D(config, self.model.cov_param)
         self.lr = self.config.training.lr
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
