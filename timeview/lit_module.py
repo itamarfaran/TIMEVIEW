@@ -4,7 +4,7 @@ import pickle
 import torch
 import pytorch_lightning as pl
 from timeview.config import Config, OPTIMIZERS
-from timeview.model import TTS
+from timeview.model import TTS, MahalanobisLoss2D
 
 
 def _get_seed_number(path):
@@ -46,20 +46,12 @@ def load_model(timestamp, benchmarks_folder='benchmarks', final=True, seed=None)
     return model
 
 
-def non_missing_y(y, n):
-    return (
-        torch.arange(y.shape[1])
-        .repeat(y.shape[0])
-        .reshape(y.shape)
-    ) < n[:, None]
-
-
 class LitTTS(pl.LightningModule):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
         self.model = TTS(config)
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = MahalanobisLoss2D()
         self.lr = self.config.training.lr
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -83,8 +75,7 @@ class LitTTS(pl.LightningModule):
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
             pred = self.model(batch_X, batch_Phi, batch_y)
-            pred = pred * non_missing_y(batch_y, batch_N)
-            loss = torch.sum(torch.sum((pred - batch_y) ** 2, dim=1) / batch_N) / batch_X.shape[0]
+            loss = self.loss_fn(batch_y, pred, batch_N)
 
         self.log(f'{name}_loss', loss)
         return loss
