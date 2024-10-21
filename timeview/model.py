@@ -133,6 +133,29 @@ class ARMA(torch.nn.Module):
         return out
 
 
+class NeuralARMA(torch.nn.Module):
+    def __init__(self, hidden_sizes, dropout_p=0.0):
+        super().__init__()
+        self.hidden_sizes = hidden_sizes
+        self.dropout_p = dropout_p
+
+        self.layers = []
+        for i in range(len(self.hidden_sizes)):
+            self.layers.extend((
+                torch.nn.Linear(self.hidden_sizes[i - 1] if i else 2, self.hidden_sizes[i]),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(self.dropout_p),
+            ))
+        self.layers.append(torch.nn.Linear(self.hidden_sizes[-1], 1))
+        self.nn = torch.nn.Sequential(*self.layers)
+
+    def forward(self, y, y_pred):
+        x = torch.stack((y, y_pred), 2)
+        x = torch.roll(x, 1, 1)
+        x[:, 0, :] = 0.0
+        return self.nn(x).squeeze(-1)
+
+
 class TTS(torch.nn.Module):
     def __init__(self, config: Config):
         super().__init__()
