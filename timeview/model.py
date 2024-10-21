@@ -14,6 +14,66 @@ def expit_m1(t):
     return 2 * torch.special.expit(t) - 1
 
 
+def filter_by_n(y, n):
+    return (
+        torch.arange(y.shape[1])
+        .repeat(y.shape[0])
+        .reshape(y.shape)
+    ) < n[:, None]
+
+
+class MahalanobisLoss2D(torch.nn.Module):
+    def __init__(self, cov_type: str = "iid", param=None):
+        super().__init__()
+
+        self.cov_type = cov_type
+        if self.cov_type not in ("iid", "ar1", "block"):
+            raise ValueError
+
+        if self.cov_type == "iid":
+            self.param = None
+        elif param is None:
+            self.param = torch.nn.Parameter(torch.zeros(1))
+        else:
+            self.param = param
+
+    def precision(self, dim):
+        if self.cov_type == "iid":
+            return torch.eye(dim)
+
+        if self.cov_type == "ar1":
+            param = expit_m1(self.param)
+            coef = -param / (1 + param ** 2)
+            return torch.eye(dim) + coef * (
+                torch.diag(torch.ones(dim - 1), 1)
+                + torch.diag(torch.ones(dim - 1), -1)
+            )
+
+        if self.cov_type == "block":
+            param = torch.special.expit(self.param)
+            coef = param / (1 + (dim - 1) * param)
+            out = torch.eye(dim) - coef * torch.ones((dim, dim))
+            return out / (1 - coef)
+
+    def forward(self, y_true, y_pred, n=None):
+        diff = y_true - y_pred
+
+        if n is None:
+            n = diff.shape[-1]
+        else:
+            diff = diff * filter_by_n(y_true, n)
+
+        if self.cov_type == "iid":
+            out = torch.sum(diff ** 2, dim=-1)
+
+        else:
+            out = diff @ self.precision(diff.shape[-1]) @ diff.T
+            if diff.ndim > 1:
+                out = torch.diag(out)
+
+        return torch.mean(out / n)
+
+
 class Encoder(torch.nn.Module):
     def __init__(self, config: Config):
         super().__init__()
