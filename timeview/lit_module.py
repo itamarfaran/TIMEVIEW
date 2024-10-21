@@ -69,8 +69,10 @@ class LitTTS(pl.LightningModule):
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
             preds = self.model(batch_X, batch_Phis, batch_ys)
-            losses = [self.loss_fn(pred, y) for pred, y in zip(preds, batch_ys)]
-            loss = torch.mean(torch.stack(losses))
+            loss = torch.stack([
+                self.loss_fn(pred, y)
+                for pred, y in zip(preds, batch_ys)
+            ]).mean()
 
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
