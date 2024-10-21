@@ -102,11 +102,10 @@ class Encoder(torch.nn.Module):
 
 
 class ARMA(torch.nn.Module):
-    def __init__(self, config: Config):
+    def __init__(self, p=0, q=0):
         super().__init__()
-        self.config = config
-        self.p = config.arma.p
-        self.q = config.arma.q
+        self.p = p
+        self.q = q
 
         if min(self.p, self.q) < 0:
             raise ValueError
@@ -141,7 +140,7 @@ class TTS(torch.nn.Module):
 
         self.config = config
         self.encoder = Encoder(self.config)
-        self.arma = ARMA(self.config)
+        self.arma = ARMA(self.config.arma.p, self.config.arma.q)
 
         self.cov_param = None if config.cov_type == "iid" else torch.nn.Parameter(torch.zeros(1))
 
