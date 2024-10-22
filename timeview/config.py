@@ -107,7 +107,9 @@ class TuningConfig(Config):
         num_epochs=200,
         internal_knots=None,
         n_basis_tunable=False,
-        dynamic_bias=False
+        dynamic_bias=False,
+        arma_type=None,
+        cov_type=None,
     ):
 
         # define hyperparameter search space
@@ -128,16 +130,25 @@ class TuningConfig(Config):
         if n_basis_tunable:
             n_basis = trial.suggest_int('n_basis', 5, 16)
 
-        cov_type = trial.suggest_categorical("cov_type", ["iid", "ar1", "block"])
+        if cov_type is None:
+            cov_type = trial.suggest_categorical("cov_type", ["iid", "ar1", "block"])
+
         encoder = {
             'hidden_sizes': hidden_sizes,
             'activation': activation,
             'dropout_p': dropout_p
         }
-        arma = {
-            'p': trial.suggest_int('p', 0, 1),
-            'q': trial.suggest_int('q', 0, 1),
-        }
+
+        arma = {'type': 'none', 'p': 0, 'q': 0, 'hidden_sizes': [], 'dropout_p': 0.0}
+        if arma_type is None:
+            arma['type'] = trial.suggest_categorical('arma_type', ('none', 'parametric', 'neural'))
+        if arma_type is None or arma_type == 'parametric':
+            arma['p'] = trial.suggest_int('p', 0, 1)
+            arma['q'] = trial.suggest_int('q', 0, 1)
+        if arma_type is None or arma_type == 'neural':
+            arma['hidden_sizes'] = [trial.suggest_int(f'arma_hidden_size_{i}', 2, 8) for i in range(2)]
+            arma['dropout_p'] = trial.suggest_float('arma_dropout_p', 0.0, 0.5)
+
         training = {
             'optimizer': 'adam',
             'lr': lr,
