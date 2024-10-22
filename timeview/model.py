@@ -122,9 +122,10 @@ class ARMA(torch.nn.Module):
     def forward(self, y=None, y_pred=None):
         out = torch.zeros_like(y)
         if self.p:
-            y_lag = torch.roll(y, 1, -1)
-            y_lag[:, 0] = 0.0
-            out = out + expit_m1(self.phi) * y_lag
+            resid = y - y.mean(-1)[:, None]
+            resid_lag = torch.roll(resid, 1, -1)
+            resid_lag[:, 0] = 0.0
+            out = out + expit_m1(self.phi) * resid_lag
         if self.q:
             resid = y - y_pred
             resid_lag = torch.roll(resid, 1, -1)
