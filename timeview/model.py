@@ -125,14 +125,14 @@ class ARMA(torch.nn.Module):
             if n is None:
                 n = y.shape[-1]
             resid = y - (y.sum(-1) / n)[:, None]
-            resid_lag = torch.roll(resid, 1, -1)
-            resid_lag[:, 0] = 0.0
-            out = out + expit_m1(self.phi) * resid_lag
+            resid[:, 1:] = resid[:, :-1]  # torch.roll(resid, 1, -1)
+            resid[:, 0] = 0.0
+            out = out + expit_m1(self.phi) * resid
         if self.q:
             resid = y - y_pred
-            resid_lag = torch.roll(resid, 1, -1)
-            resid_lag[:, 0] = 0.0
-            out = out + expit_m1(self.theta) * resid_lag
+            resid[:, 1:] = resid[:, :-1]  # torch.roll(resid, 1, -1)
+            resid[:, 0] = 0.0
+            out = out + expit_m1(self.theta) * resid
         return out
 
 
@@ -154,7 +154,7 @@ class NeuralARMA(torch.nn.Module):
 
     def forward(self, y, y_pred, n=None):
         x = torch.stack((y, y_pred), 2)
-        x = torch.roll(x, 1, 1)
+        x[:, 1:, :] = x[:, :-1, :]  # torch.roll(x, 1, 1)
         x[:, 0, :] = 0.0
         return self.nn(x).squeeze(-1)
 
