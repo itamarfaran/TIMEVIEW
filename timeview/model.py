@@ -117,7 +117,7 @@ class ARMA(torch.nn.Module):
         if self.p:
             self.phi = torch.nn.Parameter(torch.zeros(self.p))
         if self.q:
-            self.theta = torch.nn.Parameter(torch.zeros(self.p))
+            self.theta = torch.nn.Parameter(torch.zeros(self.q))
 
     def forward(self, y=None, y_pred=None, n=None):
         out = torch.zeros_like(y)
