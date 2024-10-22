@@ -52,16 +52,15 @@ class MahalanobisLoss2D(torch.nn.Module):
     def forward(self, y_true, y_pred, param=None, n=None):
         if param is None:
             param = self.param
-        else:
-            if self.param is not None:
-                raise TypeError("cannot pass param argument if param attribute is not none")
+        elif self.param is not None:
+            raise TypeError("cannot pass param argument if param attribute is not none")
 
         diff = y_true - y_pred
 
         if n is None:
             n = diff.shape[-1]
         else:
-            diff = diff * filter_by_n(y_true, n)
+            diff = diff * filter_by_n(diff, n)
 
         if self.cov_type == "iid":
             out = torch.sum(diff ** 2, dim=-1)
@@ -84,7 +83,7 @@ class Encoder(torch.nn.Module):
         self.dropout_p = config.encoder.dropout_p
 
         assert len(self.hidden_sizes) > 0
-        latent_size = self.n_basis + 1 if is_dynamic_bias_enabled(config) else self.n_basis
+        latent_size = self.n_basis + is_dynamic_bias_enabled(config)
 
         self.layers = []
         for i in range(len(self.hidden_sizes)):

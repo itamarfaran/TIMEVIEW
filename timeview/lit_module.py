@@ -65,7 +65,10 @@ class LitTTS(pl.LightningModule):
             pred = self.model(batch_X, batch_Phi)
             return pred  # 2D tensor
 
-    def _step(self, batch, name, loss_fn):
+    def _step(self, batch, name, loss_fn=None):
+        if loss_fn is None:
+            loss_fn = self.loss_fn
+
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
             preds = self.model(batch_X, batch_Phis, batch_ys)
@@ -82,7 +85,7 @@ class LitTTS(pl.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
-        return self._step(batch, 'train', self.loss_fn)
+        return self._step(batch, 'train')
 
     def validation_step(self, batch, batch_idx):
         return self._step(batch, 'val', MahalanobisLoss2D())
