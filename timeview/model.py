@@ -119,10 +119,12 @@ class ARMA(torch.nn.Module):
         if self.q:
             self.theta = torch.nn.Parameter(torch.zeros(self.p))
 
-    def forward(self, y=None, y_pred=None):
+    def forward(self, y=None, y_pred=None, n=None):
         out = torch.zeros_like(y)
         if self.p:
-            resid = y - y.mean(-1)[:, None]
+            if n is None:
+                n = y.shape[-1]
+            resid = y - (y.sum(-1) / n)[:, None]
             resid_lag = torch.roll(resid, 1, -1)
             resid_lag[:, 0] = 0.0
             out = out + expit_m1(self.phi) * resid_lag
@@ -171,7 +173,7 @@ class TTS(torch.nn.Module):
         if not is_dynamic_bias_enabled(self.config):
             self.bias = torch.nn.Parameter(torch.zeros(1))
 
-    def forward(self, X, Phis, y=None):
+    def forward(self, X, Phis, y=None, n=None):
         """
         Args:
             X: a tensor of shape (D,M) where D is the number of sample and M is the number of static features
@@ -204,7 +206,7 @@ class TTS(torch.nn.Module):
                 if is_dynamic_bias_enabled(self.config) else
                 self.bias
             )
-            return preds + self.arma(y, preds)
+            return preds + self.arma(y, preds, n)
 
     def predict_latent_variables(self, X):
         """

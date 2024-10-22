@@ -75,7 +75,7 @@ class LitTTS(pl.LightningModule):
 
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
-            pred = self.model(batch_X, batch_Phi, batch_y)
+            pred = self.model(batch_X, batch_Phi, batch_y, batch_N)
             loss = loss_fn(batch_y, pred, n=batch_N)
 
         self.log(f'{name}_loss', loss)
