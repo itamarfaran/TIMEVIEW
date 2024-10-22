@@ -11,11 +11,4 @@ else
 fi
 
 
-# Comment this part if you already have run TIMEVIEW_interface_only.sh
-if [[ " $@ " =~ " --debug " ]]; then
-    bash ./run_scripts/TIMEVIEW_interface_only.sh --debug
-else
-    bash ./run_scripts/TIMEVIEW_interface_only.sh
-fi
-
-python benchmark.py --datasets airfoil_log flchain_1000 stress-strain-lot-max-0.2 synthetic_tumor_wilkerson_1 sine_trans_200_20 beta_900_20 --baselines TTS --n_trials $n_trials --n_tune $n_tune --seed 0 --device gpu --n_basis 9
+python benchmark.py --datasets airfoil_log flchain_1000 stress-strain-lot-max-0.2 synthetic_tumor_wilkerson_1 sine_trans_200_20 beta_900_20 --baselines TTS --n_trials $n_trials --n_tune $n_tune --seed 0 --n_basis 9  --device cpu
