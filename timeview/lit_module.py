@@ -85,7 +85,7 @@ class LitTTS(pl.LightningModule):
         return self._step(batch, 'train', self.loss_fn)
 
     def validation_step(self, batch, batch_idx):
-        return self._step(batch, 'val', self.loss_fn)
+        return self._step(batch, 'val', MahalanobisLoss2D())
 
     def test_step(self, batch, batch_idx):
         return self._step(batch, 'test', MahalanobisLoss2D())
