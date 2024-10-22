@@ -152,7 +152,7 @@ class NeuralARMA(torch.nn.Module):
         self.layers.append(torch.nn.Linear(self.hidden_sizes[-1], 1))
         self.nn = torch.nn.Sequential(*self.layers)
 
-    def forward(self, y, y_pred):
+    def forward(self, y, y_pred, n=None):
         x = torch.stack((y, y_pred), 2)
         x = torch.roll(x, 1, 1)
         x[:, 0, :] = 0.0
@@ -166,9 +166,18 @@ class TTS(torch.nn.Module):
 
         self.config = config
         self.encoder = Encoder(self.config)
-        self.arma = ARMA(self.config.arma.p, self.config.arma.q)
 
-        self.cov_param = None if config.cov_type == "iid" else torch.nn.Parameter(torch.zeros(1))
+        if self.config.arma.type == 'none':
+            self.arma = ARMA(0, 0)
+        elif self.config.arma.type == 'parametric':
+            self.arma = ARMA(self.config.arma.p, self.config.arma.q)
+        elif self.config.arma.type == 'neural':
+            self.arma = NeuralARMA(self.config.arma.hidden_sizes, self.config.arma.dropout_p)
+
+        if self.config.cov_type == "iid":
+            self.cov_param = None
+        else:
+            self.cov_param = torch.nn.Parameter(torch.zeros(1))
 
         if not is_dynamic_bias_enabled(self.config):
             self.bias = torch.nn.Parameter(torch.zeros(1))

@@ -29,7 +29,7 @@ class Config():
                  cov_type="iid",
                  encoder={'hidden_sizes': [32, 64, 32],
                           'activation': 'relu', 'dropout_p': 0.2},
-                 arma={'p': 0, 'q': 0},
+                 arma={'type': 'none', 'p': 1, 'q': 1, 'hidden_sizes': [4, 2], 'dropout_p': 0.2},
                  training={'optimizer': 'adam', 'lr': 1e-3,
                            'batch_size': 32, 'weight_decay': 1e-5},
                  dataset_split={'train': 0.8, 'val': 0.1, 'test': 0.1},
