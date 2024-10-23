@@ -131,7 +131,9 @@ class TuningConfig(Config):
             n_basis = trial.suggest_int('n_basis', 5, 16)
 
         if cov_type is None:
-            cov_type = trial.suggest_categorical("cov_type", ["iid", "ar1", "block"])
+            cov_type = ('iid', 'ar1', 'block')
+        if isinstance(cov_type, (list, tuple)):
+            cov_type = trial.suggest_categorical('cov_type', cov_type)
 
         encoder = {
             'hidden_sizes': hidden_sizes,
@@ -141,13 +143,20 @@ class TuningConfig(Config):
 
         arma = {'type': 'none', 'p': 0, 'q': 0, 'hidden_sizes': [], 'dropout_p': 0.0}
         if arma_type is None:
-            arma['type'] = trial.suggest_categorical('arma_type', ('none', 'parametric', 'neural'))
-        if arma_type is None or arma_type == 'parametric':
+            arma_type = ('none', 'parametric', 'neural')
+        if isinstance(arma_type, (list, tuple)):
+            arma['type'] = trial.suggest_categorical('arma_type', arma_type)
+        else:
+            arma['type'] = arma_type
+
+        if arma_type == 'parametric' or 'parametric' in arma_type:
             arma['p'] = trial.suggest_int('p', 0, 1)
             arma['q'] = trial.suggest_int('q', 0, 1)
-        if arma_type is None or arma_type == 'neural':
-            arma['hidden_sizes'] = [trial.suggest_int(f'arma_hidden_size_{i}', 2, 8) for i in range(2)]
-            arma['dropout_p'] = trial.suggest_float('arma_dropout_p', 0.0, 0.5)
+
+        if arma_type == 'neural' or 'neural' in arma_type:
+            arma_num_hidden = trial.suggest_int('arma_num_hidden', 1, 3)
+            arma['hidden_sizes'] = [trial.suggest_int(f'arma_hidden_size_{i}', 2, 8) for i in range(arma_num_hidden)]
+            arma['dropout_p'] = trial.suggest_float('arma_dropout_p', 0.0, 0.2)
 
         training = {
             'optimizer': 'adam',
