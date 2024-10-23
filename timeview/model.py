@@ -66,6 +66,8 @@ class MahalanobisLoss2D(torch.nn.Module):
             out = torch.sum(diff ** 2, dim=-1)
 
         else:
+            # [d @ self.precision(param, diff.shape[-1]) @ d.T for d in diff]
+            # todo: adapt to different lenghts of time series...
             out = diff @ self.precision(param, diff.shape[-1]) @ diff.T
             if diff.ndim > 1:
                 out = torch.diag(out)
