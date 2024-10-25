@@ -154,7 +154,7 @@ class TuningConfig(Config):
 
         if ar_type == 'neural' or 'neural' in ar_type:
             ar_num_hidden = trial.suggest_int('ar_num_hidden', 1, 3)
-            ar['hidden_sizes'] = [trial.suggest_int(f'ar_hidden_size_{i}', 2, 8) for i in range(ar_num_hidden)]
+            ar['hidden_sizes'] = [trial.suggest_int(f'ar_hidden_size_{i}', 4, 8) for i in range(ar_num_hidden)]
             ar['dropout_p'] = trial.suggest_float('ar_dropout_p', 0.0, 0.2)
 
         training = {
