@@ -57,21 +57,22 @@ class MahalanobisLoss2D(torch.nn.Module):
 
         diff = y_true - y_pred
 
+        if diff.ndim == 1:
+            diff = diff.unsqueeze(0)
+
         if n is None:
-            n = diff.shape[-1]
+            n = torch.full((diff.shape[0],), diff.shape[-1])
         else:
             diff = diff * filter_by_n(diff, n)
 
         if self.cov_type == "iid":
             out = torch.sum(diff ** 2, dim=-1)
-
         else:
-            # [d @ self.precision(param, diff.shape[-1]) @ d.T for d in diff]
-            # todo: adapt to different lenghts of time series...
-            out = diff @ self.precision(param, diff.shape[-1]) @ diff.T
-            if diff.ndim > 1:
-                out = torch.diag(out)
-
+            # out = torch.stack([
+            #     d[:n_] @ self.precision(param, n_) @ d[:n_].T
+            #     for d, n_ in zip(diff, n)
+            # ])
+            out = torch.diag(diff @ self.precision(param, diff.shape[-1]) @ diff.T)
         return torch.mean(out / n)
 
 
