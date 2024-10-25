@@ -111,6 +111,10 @@ class AR(torch.nn.Module):
             raise ValueError
         if self.p > 1:
             raise NotImplementedError
+            # when p > 1, the polynomial 1 - phi_1 * t - phi_2 * t ^ 2 + ...
+            # must have roots lower than 1 in absolute value to be stationary.
+            # with p == 1 this easy, as we limit -1 < phi < 1,
+            # but with higher rank it is not straight-forward. so we limit p <= 1 for now.
 
         if self.p:
             self.phi = torch.nn.Parameter(torch.zeros(self.p))
@@ -167,6 +171,12 @@ class TTS(torch.nn.Module):
 
         if self.config.cov_type == "iid":
             self.cov_param = None
+        elif (
+            self.config.cov_type == "ar1"
+            and self.config.ar.type == "parametric"
+            and self.ar.p == 1
+        ):
+            self.cov_param = self.ar.phi
         else:
             self.cov_param = torch.nn.Parameter(torch.zeros(1))
 
