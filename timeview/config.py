@@ -29,7 +29,7 @@ class Config():
                  cov_type="iid",
                  encoder={'hidden_sizes': [32, 64, 32],
                           'activation': 'relu', 'dropout_p': 0.2},
-                 arma={'type': 'none', 'p': 0, 'q': 0, 'hidden_sizes': [], 'dropout_p': 0.0},
+                 ar={'type': 'none', 'p': 0, 'hidden_sizes': [], 'dropout_p': 0.0},
                  training={'optimizer': 'adam', 'lr': 1e-3,
                            'batch_size': 32, 'weight_decay': 1e-5},
                  dataset_split={'train': 0.8, 'val': 0.1, 'test': 0.1},
@@ -81,7 +81,7 @@ class Config():
         self.seed = seed
         self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
-        self.arma = SimpleNamespace(**arma)
+        self.ar = SimpleNamespace(**ar)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type
@@ -108,7 +108,7 @@ class TuningConfig(Config):
         internal_knots=None,
         n_basis_tunable=False,
         dynamic_bias=False,
-        arma_type=None,
+        ar_type=None,
         cov_type=None,
     ):
 
@@ -141,22 +141,21 @@ class TuningConfig(Config):
             'dropout_p': dropout_p
         }
 
-        arma = {'type': 'none', 'p': 0, 'q': 0, 'hidden_sizes': [], 'dropout_p': 0.0}
-        if arma_type is None:
-            arma_type = ('none', 'parametric', 'neural')
-        if isinstance(arma_type, (list, tuple)):
-            arma['type'] = trial.suggest_categorical('arma_type', arma_type)
+        ar = {'type': 'none', 'p': 0, 'hidden_sizes': [], 'dropout_p': 0.0}
+        if ar_type is None:
+            ar_type = ('none', 'parametric', 'neural')
+        if isinstance(ar_type, (list, tuple)):
+            ar['type'] = trial.suggest_categorical('ar_type', ar_type)
         else:
-            arma['type'] = arma_type
+            ar['type'] = ar_type
 
-        if arma_type == 'parametric' or 'parametric' in arma_type:
-            arma['p'] = trial.suggest_int('p', 0, 1)
-            arma['q'] = trial.suggest_int('q', 0, 1)
+        if ar_type == 'parametric' or 'parametric' in ar_type:
+            ar['p'] = trial.suggest_int('p', 0, 1)
 
-        if arma_type == 'neural' or 'neural' in arma_type:
-            arma_num_hidden = trial.suggest_int('arma_num_hidden', 1, 3)
-            arma['hidden_sizes'] = [trial.suggest_int(f'arma_hidden_size_{i}', 2, 8) for i in range(arma_num_hidden)]
-            arma['dropout_p'] = trial.suggest_float('arma_dropout_p', 0.0, 0.2)
+        if ar_type == 'neural' or 'neural' in ar_type:
+            ar_num_hidden = trial.suggest_int('ar_num_hidden', 1, 3)
+            ar['hidden_sizes'] = [trial.suggest_int(f'ar_hidden_size_{i}', 2, 8) for i in range(ar_num_hidden)]
+            ar['dropout_p'] = trial.suggest_float('ar_dropout_p', 0.0, 0.2)
 
         training = {
             'optimizer': 'adam',
@@ -206,7 +205,7 @@ class TuningConfig(Config):
         self.seed = seed
         self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
-        self.arma = SimpleNamespace(**arma)
+        self.ar = SimpleNamespace(**ar)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type

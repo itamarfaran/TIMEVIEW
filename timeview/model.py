@@ -102,42 +102,32 @@ class Encoder(torch.nn.Module):
         return self.nn(x)
 
 
-class ARMA(torch.nn.Module):
-    def __init__(self, p=0, q=0):
+class AR(torch.nn.Module):
+    def __init__(self, p=0):
         super().__init__()
         self.p = p
-        self.q = q
 
-        if min(self.p, self.q) < 0:
+        if self.p < 0:
             raise ValueError
-        if max(self.p, self.q) > 1:
+        if self.p > 1:
             raise NotImplementedError
-
-        self.phi, self.theta = None, None
 
         if self.p:
             self.phi = torch.nn.Parameter(torch.zeros(self.p))
-        if self.q:
-            self.theta = torch.nn.Parameter(torch.zeros(self.q))
+        else:
+            self.phi = None
 
-    def forward(self, y=None, y_pred=None, n=None):
+    def forward(self, y, y_pred):
         out = torch.zeros_like(y)
         if self.p:
-            if n is None:
-                n = y.shape[-1]
-            resid = y - (y.sum(-1) / n)[:, None]
-            resid[:, 1:] = resid[:, :-1]  # torch.roll(resid, 1, -1)
-            resid[:, 0] = 0.0
-            out = out + expit_m1(self.phi) * resid
-        if self.q:
             resid = y - y_pred
             resid[:, 1:] = resid[:, :-1]  # torch.roll(resid, 1, -1)
             resid[:, 0] = 0.0
-            out = out + expit_m1(self.theta) * resid
+            out = out + expit_m1(self.phi) * resid
         return out
 
 
-class NeuralARMA(torch.nn.Module):
+class NeuralAR(torch.nn.Module):
     def __init__(self, hidden_sizes, dropout_p=0.0):
         super().__init__()
         self.hidden_sizes = hidden_sizes
@@ -153,7 +143,7 @@ class NeuralARMA(torch.nn.Module):
         self.layers.append(torch.nn.Linear(self.hidden_sizes[-1], 1))
         self.nn = torch.nn.Sequential(*self.layers)
 
-    def forward(self, y, y_pred, n=None):
+    def forward(self, y, y_pred):
         x = torch.stack((y, y_pred), 2)
         x[:, 1:, :] = x[:, :-1, :]  # torch.roll(x, 1, 1)
         x[:, 0, :] = 0.0
@@ -168,12 +158,12 @@ class TTS(torch.nn.Module):
         self.config = config
         self.encoder = Encoder(self.config)
 
-        if self.config.arma.type == 'none':
-            self.arma = ARMA(0, 0)
-        elif self.config.arma.type == 'parametric':
-            self.arma = ARMA(self.config.arma.p, self.config.arma.q)
-        elif self.config.arma.type == 'neural':
-            self.arma = NeuralARMA(self.config.arma.hidden_sizes, self.config.arma.dropout_p)
+        if self.config.ar.type == 'none':
+            self.ar = AR(0)
+        elif self.config.ar.type == 'parametric':
+            self.ar = AR(self.config.ar.p)
+        elif self.config.ar.type == 'neural':
+            self.ar = NeuralAR(self.config.ar.hidden_sizes, self.config.ar.dropout_p)
 
         if self.config.cov_type == "iid":
             self.cov_param = None
@@ -183,7 +173,7 @@ class TTS(torch.nn.Module):
         if not is_dynamic_bias_enabled(self.config):
             self.bias = torch.nn.Parameter(torch.zeros(1))
 
-    def forward(self, X, Phis, y=None, n=None):
+    def forward(self, X, Phis, y=None):
         """
         Args:
             X: a tensor of shape (D,M) where D is the number of sample and M is the number of static features
@@ -198,9 +188,9 @@ class TTS(torch.nn.Module):
             h = h[:, :-1]
         
         if self.config.dataloader_type == "iterative":
-            if self.arma.p + self.arma.q:
+            if self.ar.p:
                 raise NotImplementedError
-                # todo: implement arma for iterative
+                # todo: implement ar for iterative
 
             return [
                 torch.matmul(Phi, h[d, :]) + (
@@ -216,7 +206,7 @@ class TTS(torch.nn.Module):
                 if is_dynamic_bias_enabled(self.config) else
                 self.bias
             )
-            return preds + self.arma(y, preds, n)
+            return preds + self.ar(y, preds)
 
     def predict_latent_variables(self, X):
         """
