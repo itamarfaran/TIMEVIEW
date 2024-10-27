@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import shutil
+import numpy as np
 import pandas as pd
 
 CLEAN_UP = False
@@ -26,12 +27,22 @@ for run in all_runs:
         to_append["model"] = model
         to_append.update(statistics)
 
+        results_file = run_dir.joinpath(model, "final", "results.csv")
+        if results_file.is_file():
+            mse = pd.read_csv(results_file)["test_loss"]
+            rmse = np.sqrt(mse)
+            to_append["rmse"] = rmse.mean()
+            to_append["rmse_std"] = rmse.std()
+
         tuning_file = run_dir.joinpath(model, "tuning", "hyperparameters.json")
         if tuning_file.is_file():
             with open(tuning_file, "r") as f:
                 to_append.update(json.load(f))
+
         summary.append(to_append)
 
-summary = pd.DataFrame(summary)
+summary = pd.DataFrame(summary).rename(columns={
+    "mean": "mse", "std": "mse_std",
+})
 summary.to_csv("benchmarks/summary_expanded.csv", index=False)
 print(summary)
