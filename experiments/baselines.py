@@ -1400,7 +1400,10 @@ class TTSBenchmark(BaseBenchmark):
                             dataloader_type=self.config.dataloader_type,
                             internal_knots=self.config.internal_knots,
                             n_basis_tunable=self.config.n_basis_tunable,
-                            dynamic_bias=self.config.dynamic_bias)
+                            dynamic_bias=self.config.dynamic_bias,
+                            ar_type='none',
+                            cov_type='iid',
+        )
         litmodel = LitTTS(config)
         tuning_callback = PyTorchLightningPruningCallback(trial, monitor='val_loss')
         return (litmodel, tuning_callback)
