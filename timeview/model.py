@@ -172,12 +172,12 @@ class TTS(torch.nn.Module):
 
         if self.config.cov_type == "iid":
             self.cov_param = None
-        elif (
-            self.config.cov_type == "ar1"
-            and self.config.ar.type == "parametric"
-            and self.ar.p == 1
-        ):
-            self.cov_param = self.ar.phi
+        # elif (
+        #     self.config.cov_type == "ar1"
+        #     and self.config.ar.type == "parametric"
+        #     and self.ar.p == 1
+        # ):
+        #     self.cov_param = self.ar.phi
         else:
             self.cov_param = torch.nn.Parameter(torch.zeros(1))
 
