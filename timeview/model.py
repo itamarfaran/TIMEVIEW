@@ -6,7 +6,8 @@ from timeview.config import Config
 def is_dynamic_bias_enabled(config):
     if hasattr(config, 'dynamic_bias'):
         return config.dynamic_bias
-    return False
+    else:
+        return False
 
 
 def expit_m1(t):
@@ -123,7 +124,7 @@ class AR(torch.nn.Module):
             self.phi = None
 
     def forward(self, y, y_pred):
-        out = torch.zeros_like(y)
+        out = torch.zeros_like(y_pred)
         if self.p:
             resid = y - y_pred
             resid[:, 1:] = resid[:, :-1]  # torch.roll(resid, 1, -1)
@@ -219,7 +220,7 @@ class TTS(torch.nn.Module):
             )
             return preds + self.ar(y, preds)
 
-    def predict_latent_variables(self, X):
+    def predict_latent_variables(self,X):
         """
         Args:
             X: a numpy array of shape (D,M) where D is the number of sample and M is the number of static features
@@ -231,12 +232,12 @@ class TTS(torch.nn.Module):
         self.encoder.eval()
         if is_dynamic_bias_enabled(self.config):
             with torch.no_grad():
-                return self.encoder(X)[:, :-1].cpu().numpy()
+                return self.encoder(X)[:,:-1].cpu().numpy()
         else:
             with torch.no_grad():
                 return self.encoder(X).cpu().numpy()        
 
-    def forecast_trajectory(self, x, t):
+    def forecast_trajectory(self,x,t):
         """
         Args:
             x: a numpy array of shape (M,) where M is the number of static features
@@ -245,18 +246,18 @@ class TTS(torch.nn.Module):
             a numpy array of shape (N,) where N is the number of time steps
         """
         device = self.encoder.layers[0].bias.device
-        x = torch.unsqueeze(torch.from_numpy(x), 0).float().to(device)
-        bspline = BSplineBasis(self.config.n_basis, (0, self.config.T), internal_knots=self.config.internal_knots)
+        x = torch.unsqueeze(torch.from_numpy(x),0).float().to(device)
+        bspline = BSplineBasis(self.config.n_basis, (0,self.config.T), internal_knots=self.config.internal_knots)
         Phi = torch.from_numpy(bspline.get_matrix(t)).float().to(device)
         self.encoder.eval()
         with torch.no_grad():
             h = self.encoder(x)
             if is_dynamic_bias_enabled(self.config):
-                self.bias = h[0, -1]
-                h = h[:, :-1]
-            return (torch.matmul(Phi, h[0, :]) + self.bias).cpu().numpy()
+                self.bias = h[0,-1]
+                h = h[:,:-1]
+            return (torch.matmul(Phi,h[0,:]) + self.bias).cpu().numpy()
 
-    def forecast_trajectories(self, X, t):
+    def forecast_trajectories(self,X,t):
         """
         Args:
             X: a numpy array of shape (D,M) where D is the number of sample and M is the number of static features
@@ -266,12 +267,12 @@ class TTS(torch.nn.Module):
         """
         device = self.encoder.layers[0].bias.device
         X = torch.from_numpy(X).float().to(device)
-        bspline = BSplineBasis(self.config.n_basis, (0, self.config.T), internal_knots=self.config.internal_knots)
-        Phi = torch.from_numpy(bspline.get_matrix(t)).float().to(device)  # shape (N,B)
+        bspline = BSplineBasis(self.config.n_basis, (0,self.config.T), internal_knots=self.config.internal_knots)
+        Phi = torch.from_numpy(bspline.get_matrix(t)).float().to(device) # shape (N,B)
         self.encoder.eval()
         with torch.no_grad():
-            h = self.encoder(X)  # shape (D,B)
+            h = self.encoder(X) # shape (D,B)
             if is_dynamic_bias_enabled(self.config):
-                self.bias = h[:, -1]
-                h = h[:, :-1]
-            return (torch.matmul(h, Phi.T) + self.bias).cpu().numpy()  # shape (D,N), broadcasting will take care of the bias
+                self.bias = h[:,-1]
+                h = h[:,:-1]
+            return (torch.matmul(h,Phi.T)+self.bias).cpu().numpy() # shape (D,N), broadcasting will take care of the bias

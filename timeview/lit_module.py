@@ -1,10 +1,10 @@
+import pytorch_lightning as pl
+import torch
+from timeview.config import Config, OPTIMIZERS
+from timeview.model import TTS, MahalanobisLoss2D
 import glob
 import os
 import pickle
-import torch
-import pytorch_lightning as pl
-from timeview.config import Config, OPTIMIZERS
-from timeview.model import TTS, MahalanobisLoss2D
 
 
 def _get_seed_number(path):
@@ -12,33 +12,40 @@ def _get_seed_number(path):
     seed = seeds[0]
     return seed
 
-
 def _get_logs_seed_path(benchmarks_folder, timestamp, final=True, seed=None):
-    path = os.path.join(benchmarks_folder, timestamp, 'TTS', 'final' if final else 'tuning', 'logs')
+
+    # Create path
+    if final:
+        path = os.path.join(benchmarks_folder, timestamp, 'TTS', 'final', 'logs')
+    else:
+        path = os.path.join(benchmarks_folder, timestamp, 'TTS', 'tuning', 'logs')
+
     if seed is None:
         seed = _get_seed_number(path)
+
     logs_path = os.path.join(path, f'seed_{seed}')
     return logs_path
-
 
 def _get_checkpoint_path_from_logs_seed_path(path):
     checkpoint_path = os.path.join(path, 'lightning_logs', 'version_0', 'checkpoints', 'best_val.ckpt')
     return checkpoint_path
 
-
 def _load_config_from_logs_seed_path(path):
     config_path = os.path.join(path, 'config.pkl')
+    # load config from a pickle
     with open(config_path, 'rb') as f:
         config = pickle.load(f)
     return config
 
 
 def load_config(benchmarks_folder, timestamp, final=True, seed=None):
+
     logs_seed_path = _get_logs_seed_path(benchmarks_folder, timestamp, final=final, seed=seed)
     return _load_config_from_logs_seed_path(logs_seed_path)
 
 
 def load_model(timestamp, benchmarks_folder='benchmarks', final=True, seed=None):
+
     logs_seed_path = _get_logs_seed_path(benchmarks_folder, timestamp, final=final, seed=seed)
     config = _load_config_from_logs_seed_path(logs_seed_path)
     checkpoint_path = _get_checkpoint_path_from_logs_seed_path(logs_seed_path)
@@ -47,6 +54,7 @@ def load_model(timestamp, benchmarks_folder='benchmarks', final=True, seed=None)
 
 
 class LitTTS(pl.LightningModule):
+
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
@@ -55,6 +63,7 @@ class LitTTS(pl.LightningModule):
         self.lr = self.config.training.lr
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        # def forward(self, batch, batch_idx, dataloader_idx=0):
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
             preds = self.model(batch_X, batch_Phis)  # list of tensors
@@ -94,9 +103,6 @@ class LitTTS(pl.LightningModule):
         return self._step(batch, 'test', MahalanobisLoss2D())
 
     def configure_optimizers(self):
-        optimizer = OPTIMIZERS[self.config.training.optimizer](
-            self.model.parameters(),
-            lr=self.config.training.lr,
-            weight_decay=self.config.training.weight_decay,
-        )
+        optimizer = OPTIMIZERS[self.config.training.optimizer](self.model.parameters(
+        ), lr=self.config.training.lr, weight_decay=self.config.training.weight_decay)
         return optimizer
