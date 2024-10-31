@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import glob
 from scipy.stats import beta
+from statsmodels.tsa.arima_process import arma_generate_sample
 
 def save_dataset(dataset_name, dataset_builder, dataset_dictionary, notes="", dataset_description_path="dataset_descriptions"):
     # Check if a dataset description directory exists. If not, create it.
@@ -103,7 +104,7 @@ class ExponentialDataset(BaseDataset):
     
 class BetaDataset(BaseDataset):
 
-    def __init__(self, n_samples=100, n_timesteps=20):
+    def __init__(self, n_samples=100, n_timesteps=20, add_random=False):
         super().__init__(n_samples=n_samples, n_timesteps=n_timesteps)
         n_samples_per_dim = int(np.sqrt(n_samples))
         n_samples = n_samples_per_dim**2
@@ -117,7 +118,24 @@ class BetaDataset(BaseDataset):
 
         self.X = pd.DataFrame({'alpha':cart_prod[:,0], 'beta':cart_prod[:,1]})
         self.ts = [np.linspace(0,1,n_timesteps) for i in range(len(self.X))]
-        self.ys = [np.array([beta.pdf(t,alpha, betap) for t in np.linspace(0,1,n_timesteps)]) for alpha, betap in zip(self.X['alpha'], self.X['beta'])]
+        self.ys = []
+        seed = 0
+        for alpha, betap in zip(self.X['alpha'], self.X['beta']):
+            if add_random:
+                np.random.seed(seed)
+                eps = arma_generate_sample(
+                    ar=[1, -0.64, -0.15],
+                    ma=[1, -0.12, 0.05],
+                    nsample=n_timesteps,
+                    scale=0.01,
+                    burnin=10,
+                )
+                seed += 1
+            else:
+                eps = np.zeros(n_timesteps)
+            self.ys.append(
+                beta.pdf(np.clip(np.linspace(0,1,n_timesteps) + eps, 0, 1),alpha, betap)
+            )
     
     def get_X_ts_ys(self):
         return self.X, self.ts, self.ys
@@ -180,11 +198,26 @@ class SineDataset(BaseDataset):
     
 class SineTransDataset(BaseDataset):
 
-    def __init__(self, n_samples=100, n_timesteps=20):
+    def __init__(self, n_samples=100, n_timesteps=20, add_random=False):
         super().__init__(n_samples=n_samples, n_timesteps=n_timesteps)
         self.X = pd.DataFrame({'x':np.linspace(1.0,3.0,n_samples)})
         self.ts = [np.linspace(0,1,n_timesteps) for i in range(n_samples)]
-        self.ys = [np.sin(2*t*np.pi/x) for t, x in zip(self.ts, self.X['x'])]
+        self.ys = []
+        seed = 0
+        for t, x in zip(self.ts, self.X['x']):
+            if add_random:
+                np.random.seed(seed)
+                eps = arma_generate_sample(
+                    ar=[1, -0.7, -0.32, -0.06],
+                    ma=[1, -0.05],
+                    nsample=len(t),
+                    scale=0.005,
+                    burnin=10,
+                )
+                seed += 1
+            else:
+                eps = np.zeros(len(t))
+            self.ys.append(np.sin(2*(t + eps)*np.pi/x))
     
     def get_X_ts_ys(self):
         return self.X, self.ts, self.ys
