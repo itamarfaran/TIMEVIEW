@@ -26,8 +26,10 @@ class Config():
                  n_basis=5,
                  T=1,
                  seed=42,
+                 cov_type="iid",
                  encoder={'hidden_sizes': [32, 64, 32],
                           'activation': 'relu', 'dropout_p': 0.2},
+                 ar={'type': 'none', 'p': 0, 'hidden_sizes': [], 'dropout_p': 0.0},
                  training={'optimizer': 'adam', 'lr': 1e-3,
                            'batch_size': 32, 'weight_decay': 1e-5},
                  dataset_split={'train': 0.8, 'val': 0.1, 'test': 0.1},
@@ -77,7 +79,9 @@ class Config():
         self.n_features = n_features
         self.T = T
         self.seed = seed
+        self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
+        self.ar = SimpleNamespace(**ar)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type
@@ -103,7 +107,9 @@ class TuningConfig(Config):
         num_epochs=200,
         internal_knots=None,
         n_basis_tunable=False,
-        dynamic_bias=False
+        dynamic_bias=False,
+        ar_type=None,
+        cov_type=None,
     ):
 
         # define hyperparameter search space
@@ -124,11 +130,33 @@ class TuningConfig(Config):
         if n_basis_tunable:
             n_basis = trial.suggest_int('n_basis', 5, 16)
 
+        if cov_type is None:
+            cov_type = ('iid', 'ar1', 'block')
+        if isinstance(cov_type, (list, tuple)):
+            cov_type = trial.suggest_categorical('cov_type', cov_type)
+
         encoder = {
             'hidden_sizes': hidden_sizes,
             'activation': activation,
             'dropout_p': dropout_p
         }
+
+        ar = {'type': 'none', 'p': 0, 'hidden_sizes': [], 'dropout_p': 0.0}
+        if ar_type is None:
+            ar_type = ('none', 'parametric', 'neural')
+        if isinstance(ar_type, (list, tuple)):
+            ar['type'] = trial.suggest_categorical('ar_type', ar_type)
+        else:
+            ar['type'] = ar_type
+
+        if ar_type == 'parametric' or 'parametric' in ar_type:
+            ar['p'] = trial.suggest_int('p', 0, 1)
+
+        if ar_type == 'neural' or 'neural' in ar_type:
+            ar_num_hidden = trial.suggest_int('ar_num_hidden', 1, 3)
+            ar['hidden_sizes'] = [trial.suggest_int(f'ar_hidden_size_{i}', 4, 8) for i in range(ar_num_hidden)]
+            ar['dropout_p'] = trial.suggest_float('ar_dropout_p', 0.0, 0.2)
+
         training = {
             'optimizer': 'adam',
             'lr': lr,
@@ -175,7 +203,9 @@ class TuningConfig(Config):
         self.n_features = n_features
         self.T = T
         self.seed = seed
+        self.cov_type = cov_type
         self.encoder = SimpleNamespace(**encoder)
+        self.ar = SimpleNamespace(**ar)
         self.training = SimpleNamespace(**training)
         self.dataset_split = SimpleNamespace(**dataset_split)
         self.dataloader_type = dataloader_type

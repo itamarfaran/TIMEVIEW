@@ -1,7 +1,7 @@
 import pytorch_lightning as pl
 import torch
-from .config import Config, OPTIMIZERS
-from .model import TTS
+from timeview.config import Config, OPTIMIZERS
+from timeview.model import TTS, MahalanobisLoss2D
 import glob
 import os
 import pickle
@@ -19,7 +19,7 @@ def _get_logs_seed_path(benchmarks_folder, timestamp, final=True, seed=None):
         path = os.path.join(benchmarks_folder, timestamp, 'TTS', 'final', 'logs')
     else:
         path = os.path.join(benchmarks_folder, timestamp, 'TTS', 'tuning', 'logs')
-    
+
     if seed is None:
         seed = _get_seed_number(path)
 
@@ -59,7 +59,7 @@ class LitTTS(pl.LightningModule):
         super().__init__()
         self.config = config
         self.model = TTS(config)
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = MahalanobisLoss2D(config.cov_type, self.model.cov_param)
         self.lr = self.config.training.lr
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
@@ -74,62 +74,33 @@ class LitTTS(pl.LightningModule):
             pred = self.model(batch_X, batch_Phi)
             return pred  # 2D tensor
 
-    def training_step(self, batch, batch_idx):
+    def _step(self, batch, name, loss_fn=None):
+        if loss_fn is None:
+            loss_fn = self.loss_fn
 
         if self.config.dataloader_type == 'iterative':
             batch_X, batch_Phis, batch_ys = batch
-            preds = self.model(batch_X, batch_Phis)
-            losses = [self.loss_fn(pred, y)
-                      for pred, y in zip(preds, batch_ys)]
-            loss = torch.mean(torch.stack(losses))
+            preds = self.model(batch_X, batch_Phis, batch_ys)
+            loss = torch.stack([
+                loss_fn(pred, y) for pred, y in zip(preds, batch_ys)
+            ]).mean()
 
         elif self.config.dataloader_type == 'tensor':
             batch_X, batch_Phi, batch_y, batch_N = batch
-            pred = self.model(batch_X, batch_Phi)
-            loss = torch.sum(torch.sum(((pred - batch_y) ** 2),
-                             dim=1) / batch_N) / batch_X.shape[0]
+            pred = self.model(batch_X, batch_Phi, batch_y)
+            loss = loss_fn(batch_y, pred, n=batch_N)
 
-        self.log('train_loss', loss)
-
+        self.log(f'{name}_loss', loss)
         return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, 'train')
 
     def validation_step(self, batch, batch_idx):
-
-        if self.config.dataloader_type == 'iterative':
-            batch_X, batch_Phis, batch_ys = batch
-            preds = self.model(batch_X, batch_Phis)
-            losses = [self.loss_fn(pred, y)
-                      for pred, y in zip(preds, batch_ys)]
-            loss = torch.mean(torch.stack(losses))
-
-        elif self.config.dataloader_type == 'tensor':
-            batch_X, batch_Phi, batch_y, batch_N = batch
-            pred = self.model(batch_X, batch_Phi)
-            loss = torch.sum(torch.sum(((pred - batch_y) ** 2),
-                             dim=1) / batch_N) / batch_X.shape[0]
-
-        self.log('val_loss', loss)
-
-        return loss
+        return self._step(batch, 'val', MahalanobisLoss2D())
 
     def test_step(self, batch, batch_idx):
-
-        if self.config.dataloader_type == 'iterative':
-            batch_X, batch_Phis, batch_ys = batch
-            preds = self.model(batch_X, batch_Phis)
-            losses = [self.loss_fn(pred, y)
-                      for pred, y in zip(preds, batch_ys)]
-            loss = torch.mean(torch.stack(losses))
-
-        elif self.config.dataloader_type == 'tensor':
-            batch_X, batch_Phi, batch_y, batch_N = batch
-            pred = self.model(batch_X, batch_Phi)
-            loss = torch.sum(torch.sum(((pred - batch_y) ** 2),
-                             dim=1) / batch_N) / batch_X.shape[0]
-
-        self.log('test_loss', loss)
-
-        return loss
+        return self._step(batch, 'test', MahalanobisLoss2D())
 
     def configure_optimizers(self):
         optimizer = OPTIMIZERS[self.config.training.optimizer](self.model.parameters(
